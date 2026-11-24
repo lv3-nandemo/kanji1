@@ -78,7 +78,6 @@ header.top .prog { font-size: .85rem; color: var(--muted); font-variant-numeric:
 .ytag { font-size: .7rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; color: var(--board-ink); background: var(--board); letter-spacing: .08em; }
 .ytag.kun { background: var(--redpen); color: #fff; }
 .chip { border: 1.5px solid var(--grid); background: var(--sheet); border-radius: 8px; padding: 4px 9px; font-size: 1rem; font-weight: 500; }
-.chip:active { background: var(--ghost); }
 .chip .ok { color: var(--muted); font-size: .85em; }
 .ex { display: flex; flex-wrap: wrap; gap: 8px; }
 .word { border: 1.5px solid var(--grid); background: var(--sheet); border-radius: 10px; padding: 6px 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 0; }
@@ -186,7 +185,7 @@ nav.tabs button[aria-current="true"] { color: var(--board); background: var(--gh
           <div class="yrow" id="d-kun"></div>
         </div>
       </div>
-      <p class="sect">ことば(タッチで よみあげ)</p>
+      <p class="sect">ことば</p>
       <div class="ex" id="d-ex"></div>
       <p class="sect">かきじゅん</p>
       <div class="steps-wrap"><div class="steps" id="d-steps"></div></div>
@@ -330,19 +329,6 @@ try { prog = JSON.parse(localStorage.getItem('kanji1-prog') || '{}'); } catch (e
 function save() { try { localStorage.setItem('kanji1-prog', JSON.stringify(prog)); } catch (e) {} }
 function P(k) { return prog[k] || (prog[k] = { w: 0, r: 0 }); }
 
-// ---------- よみあげ ----------
-function speak(text) {
-  try {
-    const synth = window.speechSynthesis; if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP'; u.rate = 0.85;
-    const v = synth.getVoices().find(v => v.lang && v.lang.replace('_', '-').startsWith('ja'));
-    if (v) u.voice = v;
-    synth.speak(u);
-  } catch (e) {}
-}
-const plain = s => s.replace(/\{.\|([^}]+)\}/g, '$1').replace(/ /g, '');
 
 // ---------- はなまる ----------
 function hanamaru(size = 120) {
@@ -565,15 +551,13 @@ const kunLabel = s => s.includes('.') ? s.replace(/\.(.+)/, '<span class="ok">($
 function openDetail(i) {
   di = (i + RAW.length) % RAW.length; const x = RAW[di];
   $('d-model').innerHTML = `${x.k}<small>${x.n}かく</small>`;
-  $('d-on').innerHTML = '<span class="ytag">おん</span>' + (x.on.length ? x.on.map(o => `<button class="chip" data-say="${o}">${o}</button>`).join('') : '<span class="chip">—</span>');
-  $('d-kun').innerHTML = '<span class="ytag kun">くん</span>' + (x.kun.length ? x.kun.map(o => `<button class="chip" data-say="${o.replace('.', '')}">${kunLabel(o)}</button>`).join('') : '<span class="chip">—</span>');
-  $('d-ex').innerHTML = x.ex.map(e => `<button class="word" data-say="${e.r}"><span class="rd">${e.r}</span><span class="wd">${e.w.replace(x.k, `<em>${x.k}</em>`)}</span></button>`).join('');
+  $('d-on').innerHTML = '<span class="ytag">おん</span>' + (x.on.length ? x.on.map(o => `<span class="chip">${o}</span>`).join('') : '<span class="chip">—</span>');
+  $('d-kun').innerHTML = '<span class="ytag kun">くん</span>' + (x.kun.length ? x.kun.map(o => `<span class="chip">${kunLabel(o)}</span>`).join('') : '<span class="chip">—</span>');
+  $('d-ex').innerHTML = x.ex.map(e => `<div class="word"><span class="rd">${e.r}</span><span class="wd">${e.w.replace(x.k, `<em>${x.k}</em>`)}</span></div>`).join('');
   $('d-steps').innerHTML = stepsHTML(x.k); $('d-steps').parentElement.scrollLeft = 0;
   dpad.stopOrder(); dpad.clear(); dpad.setGhost(x.k, ghostOn); $('d-result').innerHTML = '';
   show('detail');
 }
-$('v-detail').addEventListener('click', e => { const b = e.target.closest('[data-say]'); if (b) speak(b.dataset.say); });
-$('d-model').addEventListener('click', () => { const x = RAW[di]; speak([...x.kun, ...x.on].map(s => s.replace('.', '')).join('、')); });
 $('d-back').onclick = () => { renderGrid(); show('list'); };
 $('d-prev').onclick = () => openDetail(di - 1);
 $('d-next').onclick = () => openDetail(di + 1);
@@ -631,7 +615,6 @@ function renderRead() {
     const ok = b.dataset.o === x.ans; rq.res[rq.i] = ok;
     body.querySelectorAll('.choice').forEach(c => { if (c.dataset.o === x.ans) c.classList.add('right'); else if (c === b) c.classList.add('wrong'); });
     if (ok) { P(x.k).r++; save(); }
-    speak(plain(x.s));
     $('r-res').innerHTML = `<div class="msg ${ok ? 'good' : ''}">${ok ? 'せいかい!' : `ざんねん。「${x.ans}」だよ`}</div><div class="center" style="margin-top:10px"><button class="btn main big" id="r-next">つぎへ ›</button></div>`;
     body.querySelector('.qhead').outerHTML = `<div class="qhead"><span>よみクイズ ${rq.i + 1} / 10</span>${dots(rq)}</div>`;
     $('r-next').onclick = () => { rq.i++; renderRead(); };
@@ -659,7 +642,6 @@ function renderPick() {
     if (pq.res[pq.i] !== undefined) return;
     const ok = b.dataset.o === x.k; pq.res[pq.i] = ok;
     body.querySelectorAll('.choice').forEach(c => { if (c.dataset.o === x.k) c.classList.add('right'); else if (c === b) c.classList.add('wrong'); });
-    speak(plain(x.s));
     $('p-res').innerHTML = `<div class="msg ${ok ? 'good' : ''}">${ok ? 'せいかい!' : `ざんねん。こたえは「${x.k}」`}</div><div class="sub">${x.s.replace(/\{(.)\|[^}]+\}/, '$1')}</div><div class="center" style="margin-top:10px"><button class="btn main big" id="p-next">つぎへ ›</button></div>`;
     body.querySelector('.qhead').outerHTML = head();
     $('p-next').onclick = () => { pq.i++; renderPick(); };
@@ -678,10 +660,9 @@ function renderWrite() {
     <div class="sentence">${sent}</div>
     <p class="ask">あかい わくの ところを かんじで かこう</p>
     <div class="padwrap" id="w-pad"></div>
-    <div class="tools"><button class="btn" id="w-say">きく</button><button class="btn" id="w-undo">ひとつ もどす</button><button class="btn" id="w-clear">けす</button><button class="btn main" id="w-check">こたえあわせ</button></div>
+    <div class="tools"><button class="btn" id="w-undo">ひとつ もどす</button><button class="btn" id="w-clear">けす</button><button class="btn main" id="w-check">こたえあわせ</button></div>
     <div class="result" id="w-res"></div>`;
   wpad = new Pad($('w-pad')); wpad.setGhost(x.k, false);
-  $('w-say').onclick = () => speak(plain(x.s));
   $('w-undo').onclick = () => wpad.undo();
   $('w-clear').onclick = () => wpad.clear();
   $('w-check').onclick = async () => {
@@ -702,5 +683,4 @@ function renderWrite() {
 
 // ---------- はじめ ----------
 renderGrid(); show('list');
-if (window.speechSynthesis) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
 </script>
